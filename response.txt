@@ -1,0 +1,7 @@
+I'd be happy to help you with your Data Analysis using Python course.
+
+You asked about "where is panda first taught". Let's check our course videos.
+
+The first video where pandas are introduced is Video 4, titled "Data Analysis with Python - Analyzing tabular data with Pandas". In this video, at timestamp 13:36 (which is equivalent to 13 minutes and 36 seconds), the instructor mentions that before importing pandas, we need to import the pandas library by convention using the alias PD.
+
+So, you can watch Video 4 from start time 13:36 onwards to learn about how to use pandas in your data analysis.
