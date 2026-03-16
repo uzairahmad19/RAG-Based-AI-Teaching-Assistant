@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LectureLens — Video RAG Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080b10; --surface: #0e1318; --card: #131920; --border: #1e2d3d;
+    --accent: #00d4ff; --accent2: #7b61ff; --green: #00ff9d; --orange: #ff8c42;
+    --text: #c8d8e8; --muted: #4a6070; --bright: #f0f8ff;
+    --glow: 0 0 20px rgba(0,212,255,0.15);
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 14px;
+    line-height: 1.7; min-height: 100vh; overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+  .ambient { position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; opacity: 0.18; }
+  .amb1 { width: 600px; height: 600px; background: var(--accent); top: -200px; left: -100px; }
+  .amb2 { width: 500px; height: 500px; background: var(--accent2); bottom: -150px; right: -100px; }
+  .wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  header { border-bottom: 1px solid var(--border); padding: 20px 0; animation: fadeDown 0.6s ease both; }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: var(--bright); letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .badge { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; }
+
+  .hero { padding: 72px 0 56px; animation: fadeUp 0.7s 0.1s ease both; }
+  .eyebrow { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--accent); }
+  h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(30px, 5vw, 52px); color: var(--bright); line-height: 1.1; letter-spacing: -1.5px; margin-bottom: 20px; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .hero-sub { color: var(--muted); max-width: 520px; font-size: 14px; line-height: 1.8; }
+
+  .pipeline-section { padding: 48px 0; animation: fadeUp 0.7s 0.2s ease both; }
+  .section-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 24px; }
+  .pipeline { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding-bottom: 8px; }
+  .pipe-step { flex: 1; min-width: 160px; background: var(--card); border: 1px solid var(--border); padding: 20px 16px; position: relative; transition: border-color 0.3s, box-shadow 0.3s; }
+  .pipe-step:first-child { border-radius: 10px 0 0 10px; }
+  .pipe-step:last-child  { border-radius: 0 10px 10px 0; }
+  .pipe-step:not(:last-child)::after { content: '→'; position: absolute; right: -12px; top: 50%; transform: translateY(-50%); color: var(--accent); font-size: 16px; z-index: 2; background: var(--bg); padding: 0 2px; }
+  .pipe-step:hover { border-color: var(--accent); box-shadow: var(--glow); }
+  .pipe-num { font-size: 10px; letter-spacing: 2px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; }
+  .pipe-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--bright); margin-bottom: 6px; }
+  .pipe-desc { font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .pipe-file { margin-top: 10px; font-size: 10px; color: var(--accent2); letter-spacing: 0.5px; }
+
+  .demo-section { padding: 48px 0 72px; animation: fadeUp 0.7s 0.3s ease both; }
+  .demo-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .demo-topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #ff5f56; } .dot.y { background: #ffbd2e; } .dot.g { background: #27c93f; }
+  .demo-title { font-size: 12px; color: var(--muted); margin-left: 4px; letter-spacing: 1px; }
+  .demo-body { padding: 28px 24px; }
+
+  .chips-label { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .chip { padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: 'DM Mono', monospace; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.05); }
+  .chip.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+
+  .input-row { display: flex; gap: 10px; margin-bottom: 28px; }
+  .query-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--bright); font-family: 'DM Mono', monospace; font-size: 13px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+  .query-input::placeholder { color: var(--muted); }
+  .query-input:focus { border-color: var(--accent); box-shadow: var(--glow); }
+  .ask-btn { background: var(--accent); color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s; white-space: nowrap; letter-spacing: 0.5px; }
+  .ask-btn:hover { background: #33ddff; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,0.3); }
+  .ask-btn:active { transform: translateY(0); }
+  .ask-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .process-track { display: none; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; }
+  .process-track.visible { display: block; }
+  .track-steps { display: flex; gap: 0; align-items: center; }
+  .track-step { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); transition: color 0.3s; }
+  .track-step.done { color: var(--green); }
+  .track-step.active { color: var(--accent); }
+  .step-icon { width: 22px; height: 22px; border-radius: 50%; border: 1px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; transition: all 0.3s; }
+  .track-step.active .step-icon { background: rgba(0,212,255,0.1); animation: pulse 1s infinite; }
+  .track-step.done .step-icon { background: rgba(0,255,157,0.1); border-color: var(--green); }
+  .track-arrow { color: var(--border); font-size: 12px; padding: 0 4px; flex-shrink: 0; }
+
+  .results-area { display: none; }
+  .results-area.visible { display: block; }
+
+  .error-box { background: rgba(255,80,80,0.07); border: 1px solid rgba(255,80,80,0.25); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; font-size: 12px; color: #ff7070; display: none; }
+  .error-box.visible { display: block; }
+
+  .answer-box { background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; opacity: 0; transform: translateY(8px); transition: opacity 0.5s 0.6s, transform 0.5s 0.6s; box-shadow: 0 0 30px rgba(0,212,255,0.06); }
+  .answer-box.show { opacity: 1; transform: translateY(0); }
+  .answer-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .answer-label::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: block; box-shadow: 0 0 8px var(--accent); }
+  .answer-text { font-size: 13px; color: var(--bright); line-height: 1.85; }
+  .answer-text strong { color: var(--accent); font-weight: 500; }
+  .answer-text .ts { color: var(--green); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border); }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 18px; text-align: center; transition: border-color 0.3s; }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-val { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 32px; color: var(--bright); letter-spacing: -1px; }
+  .stat-val span { color: var(--accent); }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: 1px; }
+
+  footer { border-top: 1px solid var(--border); padding: 24px 0; text-align: center; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,212,255,0.4); } 50% { box-shadow: 0 0 0 5px rgba(0,212,255,0); } }
+
+  @media (max-width: 600px) {
+    .pipeline { flex-direction: column; }
+    .pipe-step { border-radius: 8px !important; }
+    .pipe-step::after { display: none !important; }
+    .track-steps { flex-direction: column; gap: 8px; }
+    .track-arrow { display: none; }
+    .stats-row { grid-template-columns: 1fr; }
+    h1 { font-size: 28px; }
+    .chunk-card { grid-template-columns: auto 1fr; }
+    .chunk-sim { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<header>
+  <div class="wrap header-inner">
+    <div class="logo">Lecture<span>Lens</span></div>
+    <div class="badge">Final Year Project · 2025</div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Video Intelligence System</div>
+    <h1>Ask anything about<br/>your <em>lecture videos</em></h1>
+    <p class="hero-sub">A Retrieval-Augmented Generation pipeline that transcribes, indexes, and semantically searches lecture content — guiding you to the exact timestamp where your answer lives.</p>
+  </div>
+</section>
+
+<section class="pipeline-section">
+  <div class="wrap">
+    <div class="section-label">// system architecture</div>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-num">01 · Stage</div>
+        <div class="pipe-title">Audio Extraction</div>
+        <div class="pipe-desc">FFmpeg strips audio tracks from MP4 lectures into structured MP3 files.</div>
+        <div class="pipe-file">process_video.py</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">02 · Stage</div>
+        <div class="pipe-title">Transcription</div>
+        <div class="pipe-desc">Faster-Whisper converts speech to timed text segments (chunks) in JSON.</div>
+        <div class="pipe-file">create_chunks.py</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">03 · Stage</div>
+        <div class="pipe-title">Embedding</div>
+        <div class="pipe-desc">BGE-M3 encodes each chunk into a semantic vector and persists to disk.</div>
+        <div class="pipe-file">read_chunks.py</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">04 · Stage</div>
+        <div class="pipe-title">RAG Query</div>
+        <div class="pipe-desc">Cosine similarity retrieves top-K chunks; LLaMA 3.2 synthesises the answer.</div>
+        <div class="pipe-file">process_query.py</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="demo-section">
+  <div class="wrap">
+    <div class="section-label">// interactive demo</div>
+    <div class="demo-card">
+      <div class="demo-topbar">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        <span class="demo-title">lecturelens — query terminal</span>
+      </div>
+      <div class="demo-body">
+
+        <div class="chips-label">// try a sample question</div>
+        <div class="chips" id="chips"></div>
+
+        <div class="input-row">
+          <input class="query-input" id="queryInput" type="text" placeholder="e.g. How does groupby work in pandas?" />
+          <button class="ask-btn" id="askBtn" onclick="runDemo()">Ask &rarr;</button>
+        </div>
+
+        <div class="process-track" id="processTrack">
+          <div class="track-steps">
+            <div class="track-step" id="ts0"><div class="step-icon">1</div><span>Embedding query</span></div>
+            <div class="track-arrow">&rarr;</div>
+            <div class="track-step" id="ts1"><div class="step-icon">2</div><span>Cosine search</span></div>
+            <div class="track-arrow">&rarr;</div>
+            <div class="track-step" id="ts2"><div class="step-icon">3</div><span>Retrieving chunks</span></div>
+            <div class="track-arrow">&rarr;</div>
+            <div class="track-step" id="ts3"><div class="step-icon">4</div><span>LLM generating</span></div>
+          </div>
+        </div>
+
+        <div class="error-box" id="errorBox"></div>
+
+        <div class="results-area" id="resultsArea">
+          <div class="answer-box" id="answerBox">
+            <div class="answer-label">LLaMA 3.2 &middot; Generated Response</div>
+            <div class="answer-text" id="answerText"></div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-val">12<span>k+</span></div><div class="stat-lbl">Chunks Indexed</div></div>
+          <div class="stat-card"><div class="stat-val">1024<span>d</span></div><div class="stat-lbl">Embedding Dims</div></div>
+          <div class="stat-card"><div class="stat-val">~<span>0.4s</span></div><div class="stat-lbl">Retrieval Time</div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">LectureLens &nbsp;&middot;&nbsp; Final Year Data Science Project &nbsp;&middot;&nbsp; Faster-Whisper &nbsp;&middot;&nbsp; BGE-M3 &nbsp;&middot;&nbsp; LLaMA 3.2</div>
+</footer>
+
+<script>
+const FLASK_URL = "http://localhost:5000/query";
+
+const SAMPLES = [
+  "How does groupby work in pandas?",
+  "What is the difference between loc and iloc?",
+  "How to handle missing values in a dataset?",
+  "Explain matplotlib subplots",
+  "How do I merge two DataFrames?"
+];
+
+// Build chips
+const chipsEl = document.getElementById("chips");
+SAMPLES.forEach(s => {
+  const c = document.createElement("div");
+  c.className = "chip"; c.textContent = s;
+  c.onclick = () => {
+    document.querySelectorAll(".chip").forEach(x => x.classList.remove("active"));
+    c.classList.add("active");
+    document.getElementById("queryInput").value = s;
+  };
+  chipsEl.appendChild(c);
+});
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showError(msg) {
+  const box = document.getElementById("errorBox");
+  box.textContent = msg;
+  box.classList.add("visible");
+}
+function hideError() {
+  document.getElementById("errorBox").classList.remove("visible");
+}
+
+async function runDemo() {
+  const query = document.getElementById("queryInput").value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById("askBtn");
+  btn.disabled = true;
+  hideError();
+
+  // Reset previous result
+  document.getElementById("resultsArea").classList.remove("visible");
+  document.getElementById("answerBox").classList.remove("show");
+
+  // Show and animate the processing track
+  const track = document.getElementById("processTrack");
+  track.classList.add("visible");
+  const steps = [0,1,2,3].map(i => document.getElementById("ts"+i));
+  steps.forEach((s, i) => {
+    s.className = "track-step";
+    s.querySelector(".step-icon").textContent = (i+1);
+  });
+
+  // Steps 1–3 animate immediately (embedding + retrieval happen fast on the backend)
+  for (let i = 0; i < 3; i++) {
+    steps[i].classList.add("active");
+    await delay(500);
+    steps[i].classList.remove("active");
+    steps[i].classList.add("done");
+    steps[i].querySelector(".step-icon").textContent = "✓";
+  }
+
+  // Step 4 (LLM generating) stays active while we wait for the real API response
+  steps[3].classList.add("active");
+
+  let answer;
+  try {
+    const res = await fetch(FLASK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: query })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Server returned " + res.status);
+    }
+
+    const data = await res.json();
+    answer = data.answer;
+
+  } catch (e) {
+    steps[3].classList.remove("active");
+    track.classList.remove("visible");
+    showError("⚠ Could not reach Flask server — is app.py running on port 5000? (" + e.message + ")");
+    btn.disabled = false;
+    return;
+  }
+
+  // Mark step 4 done
+  steps[3].classList.remove("active");
+  steps[3].classList.add("done");
+  steps[3].querySelector(".step-icon").textContent = "✓";
+  await delay(300);
+  track.classList.remove("visible");
+
+  // Render the answer
+  // Convert plain newlines to <br> so multi-paragraph answers display properly
+  const formatted = answer
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n{2,}/g, "<br><br>")
+    .replace(/\n/g, "<br>");
+
+  document.getElementById("answerText").innerHTML = formatted;
+  document.getElementById("resultsArea").classList.add("visible");
+
+  await delay(50);
+  document.getElementById("answerBox").classList.add("show");
+
+  btn.disabled = false;
+}
+
+document.getElementById("queryInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") runDemo();
+});
+</script>
+</body>
+</html>

@@ -60,7 +60,7 @@ Here are transcript chunks from lecture videos (name, number, start, end, text):
 {context}
 ---
 Question: "{question}"
-Answer naturally, mention which video and timestamp covers this topic. Convert timestamps to minutes and seconds."""
+Answer naturally, mention which video and timestamp covers this topic. Use "minutes and seconds" format when citing timestamps (e.g. "at 5 minutes 12 seconds").If the answer is not in the provided chunks, say "Sorry, I don't know". Be concise and to the point"""
 
     answer = generate(prompt)
 

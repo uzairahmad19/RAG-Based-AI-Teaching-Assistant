@@ -1,3 +1,0 @@
-The NumPy library is taught in the first video of the course.
-
-You can find more information on how to use it at various points throughout the course, including episode 1: "Data Analysis with Python". Specifically, you'll learn about its uses for numerical computation and statistics like calculating means.
