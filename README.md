@@ -1,8 +1,7 @@
-# LectureLens — Video RAG System
+# LectureLens - Video RAG System
 
 A Retrieval-Augmented Generation (RAG) pipeline that turns lecture videos into a searchable, conversational knowledge base. Ask any question about your course and the system tells you exactly which video to watch and at what timestamp.
 
-Built as a Final Year Data Science project.
 
 ---
 
@@ -26,12 +25,14 @@ LectureLens/
 │
 ├── videos/                        ← Place your course .mp4 files here
 ├── audios/                        ← Auto-created: extracted .mp3 files
-├── transcripts/                   ← Auto-created: JSON transcript chunks
+├── transcripts/                   ← Auto-created: raw JSON chunks (one per Whisper segment)
+├── merged_transcripts/            ← Auto-created: merged JSON chunks (5 segments → 1 chunk)
 │
 ├── process_video.py               Stage 1 — Extract audio from videos
 ├── create_chunks.py               Stage 2 — Transcribe audio to text chunks
-├── read_chunks.py                 Stage 3 — Generate and save embeddings
-├── process_query.py               Stage 4 — CLI query interface
+├── merge_chunks.py                Stage 3 — Merge small chunks into larger ones
+├── read_chunks.py                 Stage 4 — Generate and save embeddings
+├── process_query.py               Stage 5 — CLI query interface
 │
 ├── app.py                         Flask API (query + evaluate endpoints)
 ├── index.html                     Frontend demo
@@ -43,23 +44,15 @@ LectureLens/
 
 ## Pipeline Overview
 
-```
-videos/          audios/          transcripts/       .joblib
-  .mp4   ──►      .mp3   ──►      .json chunks  ──►  embeddings
-          FFmpeg          Whisper                BGE-M3
-
-                                    ▼
-                             Flask API (app.py)
-                                    ▼
-                            index.html (frontend)
-```
+image to be added
 
 | Stage | File | Tool | What it does |
 |-------|------|------|--------------|
 | 1 | `process_video.py` | FFmpeg | Extracts audio from `.mp4` lecture files |
 | 2 | `create_chunks.py` | Faster-Whisper | Transcribes audio into timed text segments |
-| 3 | `read_chunks.py` | BGE-M3 via Ollama | Embeds each chunk into a 1024-dim vector |
-| 4 | `app.py` | LLaMA 3.2 via Ollama | Retrieves chunks and generates answers |
+| 3 | `merge_chunks.py` | Python | Merges every 5 segments into one larger chunk |
+| 4 | `read_chunks.py` | BGE-M3 via Ollama | Embeds each merged chunk into a 1024-dim vector |
+| 5 | `app.py` | LLaMA 3.2 via Ollama | Retrieves chunks and generates answers |
 
 ---
 
@@ -120,21 +113,33 @@ Reads every `.mp4` from `videos/`, extracts the audio track using FFmpeg, and sa
 python create_chunks.py
 ```
 
-Loads each `.mp3` from `audios/`, transcribes it using Faster-Whisper, and saves timed text chunks as JSON files in `transcripts/`.
+Loads each `.mp3` from `audios/`, transcribes it using Faster-Whisper, and saves timed text chunks as JSON files in `transcripts/`. Each JSON file contains one entry per Whisper segment — these are short, typically 3–8 seconds each.
 
 > ⚠️ This step takes time depending on how many videos you have. On low-end hardware, expect roughly 1–3× real-time (a 30-minute lecture may take 30–90 minutes to transcribe).
 
-### Stage 3 — Generate embeddings
+### Stage 3 — Merge chunks
+
+```bash
+python merge_chunks.py
+```
+
+Reads the raw Whisper segments from `transcripts/` and merges every 5 consecutive segments into a single larger chunk, saving the results into `merged_transcripts/`. The merged chunk spans the `start` time of the first segment to the `end` time of the fifth, and combines all their text into one block.
+
+This step exists for two reasons. First, individual Whisper segments are very short and often mid-sentence — they don't contain enough context for the embedding model to understand the topic. Second, fewer but larger chunks means fewer embedding vectors to store and compare, which is important on low-end hardware.
+
+> You can adjust how many segments get merged by changing `n = 5` at the top of `merge_chunks.py`. Higher values produce broader chunks with more context but less precise timestamps; lower values give tighter timestamps but may not capture enough meaning.
+
+### Stage 4 — Generate embeddings
 
 ```bash
 python read_chunks.py
 ```
 
-Reads all JSON transcripts, sends each chunk to the BGE-M3 model via Ollama to generate a 1024-dimensional embedding vector, and saves everything into `chunks_with_embeddings.joblib`.
+Reads all merged JSON chunks from `merged_transcripts/`, sends each chunk's text to the BGE-M3 model via Ollama to generate a 1024-dimensional embedding vector, and saves everything into `chunks_with_embeddings.joblib`.
 
 > ⚠️ This also takes time on first run. The `.joblib` file is reused on every query after this — you never need to run this again unless you add new videos.
 
-### Stage 4 — Start the API
+### Stage 5 — Start the API
 
 ```bash
 python app.py
@@ -212,6 +217,9 @@ A chunk is counted as **relevant** if its text contains any of the `relevant_key
 
 ---
 
+## Screenshots
+
+
 ## Evaluation Metrics
 
 | Metric | Formula | What it means |
@@ -241,7 +249,7 @@ This project was developed and tested on a **low-spec machine**. Several deliber
 | **CPU device mode** | `device="cpu"` in Faster-Whisper — no GPU required |
 | **LLaMA 3.2 (3B)** | Smallest capable LLaMA model — runs on 4–6 GB RAM via Ollama without GPU offloading |
 | **BGE-M3 via Ollama** | Embedding inference handled locally by Ollama, avoiding any cloud dependency or GPU requirement |
-| **Chunk text truncated to 400 chars** | In `retrieve()`, chunk text sent to the LLM is capped at 400 characters — keeps the prompt short and generation fast |
+| **Chunk merging (5 segments → 1)** | `merge_chunks.py` groups 5 short Whisper segments into one chunk before embedding — reduces total vector count significantly, lowering both RAM usage and cosine similarity computation time per query |
 | **Embeddings pre-computed and cached** | All chunk embeddings are computed once and saved to `.joblib`. Every query loads from disk instantly — no re-embedding on each request |
 | **Top-K = 5** | Only the 5 most relevant chunks are passed to the LLM, keeping prompt size and generation time low |
 | **Non-streaming generation** | `"stream": False` in Ollama calls — simpler to handle and avoids incremental token overhead on slow machines |
@@ -272,7 +280,7 @@ Make sure FFmpeg is installed and on your system PATH. Test with `ffmpeg -versio
 Make sure Ollama is running before starting `app.py`. Run `ollama serve` in a separate terminal, or check that the Ollama desktop app is open.
 
 **`chunks_with_embeddings.joblib` not found**
-You need to run all three pipeline scripts (`process_video.py` → `create_chunks.py` → `read_chunks.py`) before starting the API.
+You need to run all four pipeline scripts in order (`process_video.py` → `create_chunks.py` → `merge_chunks.py` → `read_chunks.py`) before starting the API.
 
 **Transcription is very slow**
 This is expected on CPU. Consider running overnight for large video collections. Each file is skipped automatically if already transcribed, so you can stop and resume safely.
@@ -290,8 +298,8 @@ Before running the pipeline, make sure this is in place:
 - [ ] FFmpeg is installed and accessible from terminal
 - [ ] Ollama is running with `bge-m3` and `llama3.2` pulled
 - [ ] Python dependencies are installed
-- [ ] `audios/` and `transcripts/` folders will be created automatically
+- [ ] `audios/`, `transcripts/`, and `merged_transcripts/` folders will be created automatically
 
 ---
 
-*LectureLens — Final Year Data Science Project*
+*LectureLens - RAG based AI teaching Agent*
