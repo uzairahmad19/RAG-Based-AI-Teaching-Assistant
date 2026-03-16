@@ -1,16 +1,21 @@
 # ==========================================
-# VS Code
+# Project Specific Data & Outputs
 # ==========================================
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-.vs/*
+# Raw and processed media
+videos/
+audios/
+*.mp4
+*.mp3
 
-# Local History for Visual Studio Code
-.history/
+# Generated transcripts and embeddings
+transcripts/
+*.json
+chunks_with_embeddings.joblib
+
+# LLM prompts and responses
+prompt.txt
+response.txt
+*.txt
 
 # ==========================================
 # Python / Environment
@@ -26,8 +31,6 @@ __pycache__/
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
 # Distribution / packaging
 dist/
@@ -38,35 +41,15 @@ build/
 # ==========================================
 # Jupyter Notebook & Data Science
 # ==========================================
-# Jupyter Checkpoints
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
-
-# IPython
-profile_default/
-ipython_config.py
-
-# Execution logs
-*.log
-
-# ==========================================
-# Data & Models
-# ==========================================
 *.csv
 *.tsv
 *.xlsx
 *.parquet
-*.json
-*.sql
-*.sqlite
-*.mp4
-*.mp3
-*.txt
-
 
 # Machine Learning Model outputs / weights
 *.pkl
-*.joblib
 *.h5
 *.hdf5
 *.keras
@@ -76,13 +59,20 @@ ipython_config.py
 models/
 
 # ==========================================
-# OS Generated Files
+# VS Code & OS Generated Files
 # ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.vs/*
+.history/
+
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
-ehthumbs_vista.db
 Thumbs.db
