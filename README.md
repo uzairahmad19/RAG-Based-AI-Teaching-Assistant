@@ -45,16 +45,7 @@ LectureLens/
 
 ## Pipeline Overview
 
-```
-videos/          audios/          transcripts/       .joblib
-  .mp4   ──►      .mp3   ──►      .json chunks  ──►  embeddings
-          FFmpeg          Whisper                BGE-M3
-
-                                    ▼
-                             Flask API (app.py)
-                                    ▼
-                            index.html (frontend)
-```
+![LectureLens](https://github.com/user-attachments/assets/f432d5c5-06ff-44de-bb4b-c778dab88a33)
 
 | Stage | File | Tool | What it does |
 |-------|------|------|--------------|
@@ -263,6 +254,26 @@ This file accumulates across sessions, making it easy to compare quality over mu
 
 ---
 
+## Screenshots
+
+**Landing Page:**
+
+<img width="1920" height="910" alt="homepage" src="https://github.com/user-attachments/assets/5a89fc37-01e8-474f-9a2b-0ae4df21499e" />
+
+**ChatBox:**
+
+<img width="1920" height="910" alt="demo" src="https://github.com/user-attachments/assets/b494c1f4-10bf-4f95-ba70-117e7c6bc427" />
+
+**Sample Query & Response:**
+
+<img width="1920" height="909" alt="response loading" src="https://github.com/user-attachments/assets/e29a25f4-5b01-4666-bf8c-1ec4b4ada1a5" />
+<img width="1920" height="800" alt="output" src="https://github.com/user-attachments/assets/9e5e58b7-9fa6-400d-9c53-8f4544094606" />
+
+**Evaluation:**
+
+<img width="1920" height="817" alt="evaluation" src="https://github.com/user-attachments/assets/80d4a98b-ed3e-44b9-8419-84429e6c1dc4" />
+
+
 ## Low-End Hardware Optimisations
 
 This project was developed and tested on a **low-spec machine**. Several deliberate choices were made to keep it runnable without a GPU or large amounts of RAM:
@@ -330,6 +341,39 @@ Before running the pipeline, make sure this is in place:
 - [ ] Ollama is running with `bge-m3` and `llama3.2` pulled
 - [ ] Python dependencies are installed
 - [ ] `audios/`, `transcripts/`, and `merged_transcripts/` folders will be created automatically
+
+---
+## Future Scope
+
+### 1. GPU Acceleration
+The entire pipeline currently runs on CPU. Adding GPU support for Faster-Whisper (`device="cuda"`) and switching to a larger Whisper model (`medium` or `large-v2`) would significantly improve transcription accuracy and speed. Similarly, running BGE-M3 and LLaMA 3.2 with GPU offloading via Ollama would reduce query response time from minutes to seconds.
+
+### 2. Larger and Quantised Language Models
+LLaMA 3.2 (3B) was chosen for low-end hardware compatibility. As hardware improves, upgrading to LLaMA 3.1 (8B) or Mistral 7B would produce more detailed and accurate answers.
+
+### 3. Hybrid Search (Keyword + Semantic)
+The current retrieval is purely semantic (dense vector search). Adding BM25 keyword search and combining it with cosine similarity through a re-ranker (such as a cross-encoder) would improve results for queries with specific technical terms, variable names, or function names that semantic search alone may miss.
+
+### 4. Multi-Course Support
+Currently the system is scoped to a single course. A multi-course architecture would allow students to upload and switch between different subjects. This would require a per-course vector store, a course selection UI, and a routing layer in the Flask API that queries only the relevant embeddings.
+
+### 5. Automatic Slide and PDF Integration
+Lecture videos are often accompanied by slides or PDF notes. Integrating PDF parsing (via PyMuPDF or pdfplumber) and embedding slide content alongside video transcripts would give the system a richer knowledge base — allowing it to answer questions that appear in slides but are not spoken aloud in the video.
+
+### 6. Speaker Diarisation
+Faster-Whisper does not distinguish between speakers. Adding speaker diarisation (via pyannote.audio) would allow the system to identify when a student asks a question versus when the instructor answers — improving the quality of the transcript and allowing filtered search by speaker role.
+
+### 7. Web-Based Upload Interface
+Currently, videos must be manually placed in the `videos/` folder and the pipeline scripts must be run from the terminal. A drag-and-drop web interface for uploading videos and triggering the pipeline automatically would make the system accessible to non-technical users such as educators.
+
+### 8. Summarisation per Video
+Each video could be automatically summarised into a set of key topics after transcription. These summaries could be displayed in the frontend as a table of contents, letting users browse what a video covers before asking questions — reducing dependency on exact query wording.
+
+### 9. User Feedback Loop
+Adding a thumbs up / thumbs down button on each answer would allow users to flag poor responses. Over time, this feedback could be used to fine-tune the prompt, adjust chunk size, or retrain a re-ranker — turning the system into a self-improving retrieval engine.
+
+### 10. Cloud Deployment
+The system is fully local by design. A natural next step would be containerising it with Docker and deploying it on a cloud platform (AWS EC2, Google Cloud Run, or Hugging Face Spaces) with the `.joblib` file stored in an object store like AWS S3 — making it accessible to an entire class rather than just one machine.
 
 ---
 
