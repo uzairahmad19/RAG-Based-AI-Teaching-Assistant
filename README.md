@@ -1,8 +1,7 @@
-# LectureLens — Video RAG System
+# LectureLens - Video RAG System
 
 A Retrieval-Augmented Generation (RAG) pipeline that turns lecture videos into a searchable, conversational knowledge base. Ask any question about your course and the system tells you exactly which video to watch and at what timestamp.
 
-Built as a Final Year Data Science project.
 
 ---
 
@@ -14,7 +13,7 @@ You type a question like *"How does groupby work in pandas?"* and the system:
 2. Searches lecture transcript chunks using cosine similarity
 3. Passes the most relevant chunks to LLaMA 3.2 as context
 4. Returns a natural language answer with the exact video title and timestamp
-5. Automatically evaluates the answer quality using **cosine similarity** — no external evaluation library or LLM judge required
+5. Automatically evaluates the answer quality using **cosine similarity**
 
 ---
 
@@ -377,4 +376,4 @@ The system is fully local by design. A natural next step would be containerising
 
 ---
 
-*LectureLens — Final Year Data Science Project*
+*LectureLens - Video Based RAG System*
